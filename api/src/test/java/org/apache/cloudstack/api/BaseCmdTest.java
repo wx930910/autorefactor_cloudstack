@@ -74,6 +74,7 @@ class MockCmd2 {
 	public MockCmd2() {
 		this.MockedCmd2 = mock(Cmd2.class);
 		Mockito.when(MockedCmd2.getCommandName()).thenReturn(BaseCmdTest.CMD2_RESPONSE);
+		System.out.println("?");
 	}
 
 }
