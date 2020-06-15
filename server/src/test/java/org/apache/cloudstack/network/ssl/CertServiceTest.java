@@ -648,7 +648,7 @@ public class CertServiceTest {
 		when(certService._lbCertDao.listByCertId(Matchers.anyLong())).thenReturn(null);
 
 		// creating the command
-		final DeleteSslCertCmd deleteCmd = new DeleteSslCertCmdExtn();
+		final DeleteSslCertCmd deleteCmd = new MockDeleteSslCertCmdExtn().MockedDeleteSslCertCmdExtn;
 		final Class<?> klazz = deleteCmd.getClass().getSuperclass();
 
 		final Field certField = klazz.getDeclaredField("id");
@@ -693,7 +693,7 @@ public class CertServiceTest {
 		when(certService._entityMgr.findById(Matchers.eq(LoadBalancerVO.class), Matchers.anyLong())).thenReturn(new LoadBalancerVO());
 
 		// creating the command
-		final DeleteSslCertCmd deleteCmd = new DeleteSslCertCmdExtn();
+		final DeleteSslCertCmd deleteCmd = new MockDeleteSslCertCmdExtn().MockedDeleteSslCertCmdExtn;
 		final Class<?> klazz = deleteCmd.getClass().getSuperclass();
 
 		final Field certField = klazz.getDeclaredField("id");
@@ -733,7 +733,7 @@ public class CertServiceTest {
 		when(certService._lbCertDao.listByCertId(Matchers.anyLong())).thenReturn(null);
 
 		// creating the command
-		final DeleteSslCertCmd deleteCmd = new DeleteSslCertCmdExtn();
+		final DeleteSslCertCmd deleteCmd = new MockDeleteSslCertCmdExtn().MockedDeleteSslCertCmdExtn;
 		final Class<?> klazz = deleteCmd.getClass().getSuperclass();
 
 		final Field certField = klazz.getDeclaredField("id");
@@ -768,6 +768,20 @@ public class CertServiceTest {
 		public long getEntityOwnerId() {
 			return 1;
 		}
+	}
+
+	public class MockDeleteSslCertCmdExtn {
+		public DeleteSslCertCmd MockedDeleteSslCertCmdExtn;
+
+		public MockDeleteSslCertCmdExtn() {
+			this.MockedDeleteSslCertCmdExtn = Mockito.mock(DeleteSslCertCmd.class, Mockito.CALLS_REAL_METHODS);
+			mockGetEntityOwnerId();
+		}
+
+		private void mockGetEntityOwnerId() {
+			Mockito.when(this.MockedDeleteSslCertCmdExtn.getEntityOwnerId()).thenReturn((long) 1);
+		}
+
 	}
 
 	public class DeleteSslCertCmdExtn extends DeleteSslCertCmd {
