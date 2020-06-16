@@ -24,102 +24,120 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.easymock.EasyMock;
 import org.junit.Test;
 
 import com.cloud.utils.Pair;
 import com.cloud.utils.db.SearchCriteria.Func;
 import com.cloud.utils.db.SearchCriteria.Op;
 
-
 public class GroupByTest {
 
-    protected static final String EXPECTED_QUERY = "BASE GROUP BY FIRST(TEST_TABLE.TEST_COLUMN), MAX(TEST_TABLE.TEST_COLUMN) HAVING COUNT(TEST_TABLE2.TEST_COLUMN2) > ? ";
-    protected static final DbTestDao dao = new DbTestDao();
-    protected static final String EXPECTED_QUERY_2 = "TEST GROUP BY test.fld_int HAVING SUM(test.fld_long) > ? ";
-    protected static final String FULL_EXPECTED_QUERY_2 = "SELECT test.fld_string FROM test WHERE test.fld_string = ?  GROUP BY test.fld_int HAVING SUM(test.fld_long) > ? ";
+	protected static final String EXPECTED_QUERY = "BASE GROUP BY FIRST(TEST_TABLE.TEST_COLUMN), MAX(TEST_TABLE.TEST_COLUMN) HAVING COUNT(TEST_TABLE2.TEST_COLUMN2) > ? ";
+	protected static final DbTestDao dao = new DbTestDao();
+	protected static final String EXPECTED_QUERY_2 = "TEST GROUP BY test.fld_int HAVING SUM(test.fld_long) > ? ";
+	protected static final String FULL_EXPECTED_QUERY_2 = "SELECT test.fld_string FROM test WHERE test.fld_string = ?  GROUP BY test.fld_int HAVING SUM(test.fld_long) > ? ";
 
-    @Test
-    public void testToSql() {
-        // Prepare
-        final StringBuilder sb = new StringBuilder("BASE");
-        final GroupByExtension groupBy = new GroupByExtension(new SearchBaseExtension(String.class, String.class));
+	@Test
+	public void testToSql() {
+		// Prepare
+		final StringBuilder sb = new StringBuilder("BASE");
+		final GroupByExtension groupBy = new GroupByExtension(new SearchBaseExtension(String.class, String.class));
 
-        final Attribute att = new Attribute("TEST_TABLE", "TEST_COLUMN");
-        final Attribute att2 = new Attribute("TEST_TABLE2", "TEST_COLUMN2");
-        final Pair<Func, Attribute> pair1 = new Pair<>(SearchCriteria.Func.FIRST, att);
-        final Pair<Func, Attribute> pair2 = new Pair<>(SearchCriteria.Func.MAX, att);
-        groupBy._groupBys = new ArrayList<>();
-        groupBy._groupBys.add(pair1);
-        groupBy._groupBys.add(pair2);
-        groupBy.having(SearchCriteria.Func.COUNT, att2, Op.GT);
+		final Attribute att = new Attribute("TEST_TABLE", "TEST_COLUMN");
+		final Attribute att2 = new Attribute("TEST_TABLE2", "TEST_COLUMN2");
+		final Pair<Func, Attribute> pair1 = new Pair<>(SearchCriteria.Func.FIRST, att);
+		final Pair<Func, Attribute> pair2 = new Pair<>(SearchCriteria.Func.MAX, att);
+		groupBy._groupBys = new ArrayList<>();
+		groupBy._groupBys.add(pair1);
+		groupBy._groupBys.add(pair2);
+		groupBy.having(SearchCriteria.Func.COUNT, att2, Op.GT);
 
-        // Execute
-        groupBy.toSql(sb);
+		// Execute
+		groupBy.toSql(sb);
 
-        // Assert
-        assertTrue("It didn't create the expected SQL query.", sb.toString().equals(EXPECTED_QUERY));
-    }
+		// Assert
+		assertTrue("It didn't create the expected SQL query.", sb.toString().equals(EXPECTED_QUERY));
+	}
 
-    @Test
-    public void testToSqlWithDao() {
-        StringBuilder sb = new StringBuilder("TEST");
-        SearchBuilder<DbTestVO> searchBuilder = dao.createSearchBuilder();
-        searchBuilder.selectFields(searchBuilder.entity().getFieldString());
-        searchBuilder.and("st", searchBuilder.entity().getFieldString(), SearchCriteria.Op.EQ);
-        GroupBy groupBy = searchBuilder.groupBy(searchBuilder.entity().getFieldInt());
-        groupBy.having(SearchCriteria.Func.SUM, dao.getAllAttributes().get("fieldLong"), SearchCriteria.Op.GT);
-        groupBy.toSql(sb);
-        assertTrue("It didn't create the expected SQL query.", sb.toString().equals(EXPECTED_QUERY_2));
+	@Test
+	public void testToSqlWithDao() {
+		StringBuilder sb = new StringBuilder("TEST");
+		SearchBuilder<DbTestVO> searchBuilder = dao.createSearchBuilder();
+		searchBuilder.selectFields(searchBuilder.entity().getFieldString());
+		searchBuilder.and("st", searchBuilder.entity().getFieldString(), SearchCriteria.Op.EQ);
+		GroupBy groupBy = searchBuilder.groupBy(searchBuilder.entity().getFieldInt());
+		groupBy.having(SearchCriteria.Func.SUM, dao.getAllAttributes().get("fieldLong"), SearchCriteria.Op.GT);
+		groupBy.toSql(sb);
+		assertTrue("It didn't create the expected SQL query.", sb.toString().equals(EXPECTED_QUERY_2));
 
-        searchBuilder.done();
-        SearchCriteria<DbTestVO> sc = searchBuilder.create();
-        sc.setGroupByValues(0);
-        sc.setParameters("st", "SOMETHING");
+		searchBuilder.done();
+		SearchCriteria<DbTestVO> sc = searchBuilder.create();
+		sc.setGroupByValues(0);
+		sc.setParameters("st", "SOMETHING");
 
-        String clause = sc.getWhereClause();
-        if (clause != null && clause.length() == 0) {
-            clause = null;
-        }
+		String clause = sc.getWhereClause();
+		if (clause != null && clause.length() == 0) {
+			clause = null;
+		}
 
-        final StringBuilder str = dao.createPartialSelectSql(sc, clause != null);
-        if (clause != null) {
-            str.append(clause);
-        }
+		final StringBuilder str = dao.createPartialSelectSql(sc, clause != null);
+		if (clause != null) {
+			str.append(clause);
+		}
 
-        Collection<JoinBuilder<SearchCriteria<?>>> joins;
-        joins = sc.getJoins();
-        if (joins != null) {
-            dao.addJoins(str, joins);
-        }
+		Collection<JoinBuilder<SearchCriteria<?>>> joins;
+		joins = sc.getJoins();
+		if (joins != null) {
+			dao.addJoins(str, joins);
+		}
 
-        List<Object> groupByValues = dao.addGroupBy(str, sc);
+		List<Object> groupByValues = dao.addGroupBy(str, sc);
 
-        assertTrue("It didn't create the expected SQL query.", str.toString().equals(FULL_EXPECTED_QUERY_2));
-        assertTrue("Incorrect group by parameter list", groupByValues.size() == 1);
-    }
+		assertTrue("It didn't create the expected SQL query.", str.toString().equals(FULL_EXPECTED_QUERY_2));
+		assertTrue("Incorrect group by parameter list", groupByValues.size() == 1);
+	}
+
+}
+
+class MockedGroupByExtension {
+	GroupBy<SearchBaseExtension, String, String> mockedGroupByExtension;
+
+	public MockedGroupByExtension(final SearchBaseExtension builder) {
+		this.mockedGroupByExtension = EasyMock.partialMockBuilder(GroupBy.class).withConstructor(builder).addMockedMethod("init", Object.class)
+				.createMock();
+		this.mockedGroupByExtension._builder = builder;
+		mockInit();
+		EasyMock.replay(this.mockedGroupByExtension);
+	}
+
+	private void mockInit() {
+		this.mockedGroupByExtension.init(EasyMock.anyObject());
+		EasyMock.expectLastCall().andVoid();
+	}
 
 }
 
 class GroupByExtension extends GroupBy<SearchBaseExtension, String, String> {
 
-    public GroupByExtension(final SearchBaseExtension builder) {
-        super(builder);
-        _builder = builder;
-    }
+	public GroupByExtension(final SearchBaseExtension builder) {
+		super(builder);
+		_builder = builder;
+	}
 
-    @Override
-    protected void init(final SearchBaseExtension builder) {
-    }
+	@Override
+	protected void init(final SearchBaseExtension builder) {
+	}
 }
 
-class SearchBaseExtension extends SearchBase<SearchBaseExtension, String, String>{
+class SearchBaseExtension extends SearchBase<SearchBaseExtension, String, String> {
 
-    SearchBaseExtension(final Class entityType, final Class resultType) {
-        super(entityType, resultType);
-        _specifiedAttrs = new ArrayList<>();
-    }
+	SearchBaseExtension(final Class entityType, final Class resultType) {
+		super(entityType, resultType);
+		_specifiedAttrs = new ArrayList<>();
+	}
 
-    @Override
-    protected void init(final Class<String> entityType, final Class<String> resultType) {
-    }
+	@Override
+	protected void init(final Class<String> entityType, final Class<String> resultType) {
+	}
 }

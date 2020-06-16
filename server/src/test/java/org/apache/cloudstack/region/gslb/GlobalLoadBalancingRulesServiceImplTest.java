@@ -1003,6 +1003,7 @@ public class GlobalLoadBalancingRulesServiceImplTest extends TestCase {
 			this.mockedCreateGlobalLoadBalancerRuleCmdExtn = EasyMock.partialMockBuilder(DeleteGlobalLoadBalancerRuleCmd.class)
 					.addMockedMethod("getEntityOwnerId").createMock();
 			mockGetEntityOwnerId();
+			EasyMock.replay(this.mockedCreateGlobalLoadBalancerRuleCmdExtn);
 		}
 
 		private void mockGetEntityOwnerId() {
@@ -1025,6 +1026,7 @@ public class GlobalLoadBalancingRulesServiceImplTest extends TestCase {
 			this.mockedAssignToGlobalLoadBalancerRuleCmdExtn = EasyMock.partialMockBuilder(DeleteGlobalLoadBalancerRuleCmd.class)
 					.addMockedMethod("getEntityOwnerId").createMock();
 			mockGetEntityOwnerId();
+			EasyMock.replay(this.mockedAssignToGlobalLoadBalancerRuleCmdExtn);
 		}
 
 		private void mockGetEntityOwnerId() {
@@ -1047,6 +1049,7 @@ public class GlobalLoadBalancingRulesServiceImplTest extends TestCase {
 			this.mockedRemoveFromGlobalLoadBalancerRuleCmdExtn = EasyMock.partialMockBuilder(DeleteGlobalLoadBalancerRuleCmd.class)
 					.addMockedMethod("getEntityOwnerId").createMock();
 			mockGetEntityOwnerId();
+			EasyMock.replay(this.mockedRemoveFromGlobalLoadBalancerRuleCmdExtn);
 		}
 
 		private void mockGetEntityOwnerId() {
@@ -1069,6 +1072,7 @@ public class GlobalLoadBalancingRulesServiceImplTest extends TestCase {
 			this.mockedDeleteGlobalLoadBalancerRuleCmdExtn = EasyMock.partialMockBuilder(DeleteGlobalLoadBalancerRuleCmd.class)
 					.addMockedMethod("getEntityOwnerId").createMock();
 			mockGetEntityOwnerId();
+			EasyMock.replay(this.mockedDeleteGlobalLoadBalancerRuleCmdExtn);
 		}
 
 		private void mockGetEntityOwnerId() {
