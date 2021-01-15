@@ -17,10 +17,8 @@
 package org.apache.cloudstack.api;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
@@ -30,59 +28,42 @@ import com.cloud.exception.ResourceUnavailableException;
 
 public class BaseCmdTest {
 
-	private static final String NON_EXPECTED_COMMAND_NAME = "Non expected command name";
-	protected static final String CMD1_NAME = "Cmd1Name";
-	protected static final String CMD2_NAME = "Cmd2Name";
-	protected static final String CMD1_RESPONSE = "cmd1response";
-	protected static final String CMD2_RESPONSE = "cmd2response";
+    private static final String NON_EXPECTED_COMMAND_NAME = "Non expected command name";
+    protected static final String CMD1_NAME = "Cmd1Name";
+    protected static final String CMD2_NAME = "Cmd2Name";
+    protected static final String CMD1_RESPONSE = "cmd1response";
+    protected static final String CMD2_RESPONSE = "cmd2response";
 
-	@Test
-	public void testGetActualCommandName() {
-		BaseCmd cmd1 = new Cmd1();
-		BaseCmd cmd2 = new Cmd2();
-		BaseCmd mockedCmd2 = new MockCmd2().MockedCmd2;
+    @Test
+    public void testGetActualCommandName(){
+        BaseCmd cmd1 = new Cmd1();
+        BaseCmd cmd2 = new Cmd2();
 
-		assertEquals(NON_EXPECTED_COMMAND_NAME, CMD1_NAME, cmd1.getActualCommandName());
-		assertEquals(NON_EXPECTED_COMMAND_NAME, CMD2_NAME, cmd2.getActualCommandName());
-		// assertEquals(NON_EXPECTED_COMMAND_NAME, CMD2_NAME,
-		// mockedCmd2.getActualCommandName());
-	}
+        assertEquals(NON_EXPECTED_COMMAND_NAME, CMD1_NAME, cmd1.getActualCommandName());
+        assertEquals(NON_EXPECTED_COMMAND_NAME, CMD2_NAME, cmd2.getActualCommandName());
+    }
 }
 
-@APICommand(name = BaseCmdTest.CMD1_NAME, responseObject = BaseResponse.class)
+@APICommand(name=BaseCmdTest.CMD1_NAME, responseObject=BaseResponse.class)
 class Cmd1 extends BaseCmd {
-	@Override
-	public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException,
-			ResourceAllocationException, NetworkRuleConflictException {
-	}
-
-	@Override
-	public String getCommandName() {
-		return BaseCmdTest.CMD1_RESPONSE;
-	}
-
-	@Override
-	public long getEntityOwnerId() {
-		return 0;
-	}
+    @Override
+    public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException,
+            NetworkRuleConflictException {
+    }
+    @Override
+    public String getCommandName() {
+        return BaseCmdTest.CMD1_RESPONSE;
+    }
+    @Override
+    public long getEntityOwnerId() {
+        return 0;
+    }
 }
 
-@APICommand(name = BaseCmdTest.CMD2_NAME, responseObject = BaseResponse.class)
-class MockCmd2 {
-	public Cmd1 MockedCmd2;
-
-	public MockCmd2() {
-		this.MockedCmd2 = mock(Cmd2.class);
-		Mockito.when(MockedCmd2.getCommandName()).thenReturn(BaseCmdTest.CMD2_RESPONSE);
-		System.out.println("?");
-	}
-
-}
-
-@APICommand(name = BaseCmdTest.CMD2_NAME, responseObject = BaseResponse.class)
+@APICommand(name=BaseCmdTest.CMD2_NAME, responseObject=BaseResponse.class)
 class Cmd2 extends Cmd1 {
-	@Override
-	public String getCommandName() {
-		return BaseCmdTest.CMD2_RESPONSE;
-	}
+    @Override
+    public String getCommandName() {
+        return BaseCmdTest.CMD2_RESPONSE;
+    }
 }
