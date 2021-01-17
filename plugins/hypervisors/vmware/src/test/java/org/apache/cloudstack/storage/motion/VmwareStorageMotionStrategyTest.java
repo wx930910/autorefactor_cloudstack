@@ -16,6 +16,13 @@
 // under the License.
 package org.apache.cloudstack.storage.motion;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,17 +30,6 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.agent.AgentManager;
-import com.cloud.agent.api.MigrateWithStorageAnswer;
-import com.cloud.agent.api.MigrateWithStorageCommand;
-import com.cloud.agent.api.to.VirtualMachineTO;
-import com.cloud.host.Host;
-import com.cloud.host.dao.HostDao;
-import com.cloud.hypervisor.Hypervisor.HypervisorType;
-import com.cloud.storage.dao.VolumeDao;
-import com.cloud.utils.component.ComponentContext;
-import com.cloud.vm.VMInstanceVO;
-import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.StrategyPriority;
@@ -63,217 +59,226 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.isA;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.MigrateWithStorageAnswer;
+import com.cloud.agent.api.MigrateWithStorageCommand;
+import com.cloud.agent.api.to.VirtualMachineTO;
+import com.cloud.host.Host;
+import com.cloud.host.dao.HostDao;
+import com.cloud.hypervisor.Hypervisor.HypervisorType;
+import com.cloud.storage.dao.VolumeDao;
+import com.cloud.utils.component.ComponentContext;
+import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.VMInstanceDao;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
 public class VmwareStorageMotionStrategyTest {
 
-    @Inject
-    VmwareStorageMotionStrategy strategy = new VmwareStorageMotionStrategy();
-    @Inject
-    AgentManager agentMgr;
-    @Inject
-    VolumeDao volDao;
-    @Inject
-    VolumeDataFactory volFactory;
-    @Inject
-    PrimaryDataStoreDao storagePoolDao;
-    @Inject
-    VMInstanceDao instanceDao;
-    @Inject
-    private HostDao hostDao;
+	public AsyncRpcContext<CommandResult> mockAsyncRpcContext1(AsyncCompletionCallback<CommandResult> callback,
+			AsyncCallFuture<CommandResult> future, Map<VolumeInfo, DataStore> volumeToPool) {
+		AsyncRpcContext<CommandResult> mockInstance = Mockito.spy(new AsyncRpcContext(callback));
+		try {
+		} catch (Exception exception) {
+		}
+		return mockInstance;
+	}
 
-    CopyCommandResult result;
+	@Inject
+	VmwareStorageMotionStrategy strategy = new VmwareStorageMotionStrategy();
+	@Inject
+	AgentManager agentMgr;
+	@Inject
+	VolumeDao volDao;
+	@Inject
+	VolumeDataFactory volFactory;
+	@Inject
+	PrimaryDataStoreDao storagePoolDao;
+	@Inject
+	VMInstanceDao instanceDao;
+	@Inject
+	private HostDao hostDao;
 
-    @BeforeClass
-    public static void setUp() throws ConfigurationException {
-    }
+	CopyCommandResult result;
 
-    @Before
-    public void testSetUp() {
-        ComponentContext.initComponentsLifeCycle();
-    }
+	@BeforeClass
+	public static void setUp() throws ConfigurationException {
+	}
 
-    @Test
-    public void testStrategyHandlesVmwareHosts() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getHypervisorType()).thenReturn(HypervisorType.VMware);
-        when(destHost.getHypervisorType()).thenReturn(HypervisorType.VMware);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        StrategyPriority canHandle = strategy.canHandle(volumeMap, srcHost, destHost);
-        assertTrue("The strategy is only supposed to handle vmware hosts", canHandle == StrategyPriority.HYPERVISOR);
-    }
+	@Before
+	public void testSetUp() {
+		ComponentContext.initComponentsLifeCycle();
+	}
 
-    @Test
-    public void testStrategyDoesnotHandlesNonVmwareHosts() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getHypervisorType()).thenReturn(HypervisorType.XenServer);
-        when(destHost.getHypervisorType()).thenReturn(HypervisorType.XenServer);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        StrategyPriority canHandle = strategy.canHandle(volumeMap, srcHost, destHost);
-        assertFalse("The strategy is only supposed to handle vmware hosts", canHandle == StrategyPriority.HYPERVISOR);
-    }
+	@Test
+	public void testStrategyHandlesVmwareHosts() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getHypervisorType()).thenReturn(HypervisorType.VMware);
+		when(destHost.getHypervisorType()).thenReturn(HypervisorType.VMware);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		StrategyPriority canHandle = strategy.canHandle(volumeMap, srcHost, destHost);
+		assertTrue("The strategy is only supposed to handle vmware hosts", canHandle == StrategyPriority.HYPERVISOR);
+	}
 
-    @Test
-    public void testMigrateWithinClusterSuccess() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getClusterId()).thenReturn(1L);
-        when(destHost.getClusterId()).thenReturn(1L);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        VirtualMachineTO to = mock(VirtualMachineTO.class);
-        when(to.getId()).thenReturn(6L);
-        VMInstanceVO instance = mock(VMInstanceVO.class);
-        when(instanceDao.findById(6L)).thenReturn(instance);
+	@Test
+	public void testStrategyDoesnotHandlesNonVmwareHosts() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getHypervisorType()).thenReturn(HypervisorType.XenServer);
+		when(destHost.getHypervisorType()).thenReturn(HypervisorType.XenServer);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		StrategyPriority canHandle = strategy.canHandle(volumeMap, srcHost, destHost);
+		assertFalse("The strategy is only supposed to handle vmware hosts", canHandle == StrategyPriority.HYPERVISOR);
+	}
 
-        MockContext<CommandResult> context = new MockContext<CommandResult>(null, null, volumeMap);
-        AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher.create(this);
-        caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
+	@Test
+	public void testMigrateWithinClusterSuccess() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getClusterId()).thenReturn(1L);
+		when(destHost.getClusterId()).thenReturn(1L);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		VirtualMachineTO to = mock(VirtualMachineTO.class);
+		when(to.getId()).thenReturn(6L);
+		VMInstanceVO instance = mock(VMInstanceVO.class);
+		when(instanceDao.findById(6L)).thenReturn(instance);
 
-        MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
-        when(migAnswerMock.getResult()).thenReturn(true);
-        when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
+		AsyncRpcContext<CommandResult> context = mockAsyncRpcContext1(null, null, volumeMap);
+		AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher
+				.create(this);
+		caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
 
-        strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
-        assertTrue("Migration within cluster isn't successful.", result.isSuccess());
-    }
+		MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
+		when(migAnswerMock.getResult()).thenReturn(true);
+		when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
 
-    @Test
-    public void testMigrateWithinClusterFailure() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getClusterId()).thenReturn(1L);
-        when(destHost.getClusterId()).thenReturn(1L);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        VirtualMachineTO to = mock(VirtualMachineTO.class);
-        when(to.getId()).thenReturn(6L);
-        VMInstanceVO instance = mock(VMInstanceVO.class);
-        when(instanceDao.findById(6L)).thenReturn(instance);
+		strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
+		assertTrue("Migration within cluster isn't successful.", result.isSuccess());
+	}
 
-        MockContext<CommandResult> context = new MockContext<CommandResult>(null, null, volumeMap);
-        AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher.create(this);
-        caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
+	@Test
+	public void testMigrateWithinClusterFailure() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getClusterId()).thenReturn(1L);
+		when(destHost.getClusterId()).thenReturn(1L);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		VirtualMachineTO to = mock(VirtualMachineTO.class);
+		when(to.getId()).thenReturn(6L);
+		VMInstanceVO instance = mock(VMInstanceVO.class);
+		when(instanceDao.findById(6L)).thenReturn(instance);
 
-        MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
-        when(migAnswerMock.getResult()).thenReturn(false);
-        when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
+		AsyncRpcContext<CommandResult> context = mockAsyncRpcContext1(null, null, volumeMap);
+		AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher
+				.create(this);
+		caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
 
-        strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
-        assertFalse("Migration within cluster didn't fail.", result.isSuccess());
-    }
+		MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
+		when(migAnswerMock.getResult()).thenReturn(false);
+		when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
 
-    @Test
-    public void testMigrateAcrossClusterSuccess() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getClusterId()).thenReturn(1L);
-        when(destHost.getClusterId()).thenReturn(2L);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        VirtualMachineTO to = mock(VirtualMachineTO.class);
-        when(to.getId()).thenReturn(6L);
-        VMInstanceVO instance = mock(VMInstanceVO.class);
-        when(instanceDao.findById(6L)).thenReturn(instance);
+		strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
+		assertFalse("Migration within cluster didn't fail.", result.isSuccess());
+	}
 
-        MockContext<CommandResult> context = new MockContext<CommandResult>(null, null, volumeMap);
-        AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher.create(this);
-        caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
+	@Test
+	public void testMigrateAcrossClusterSuccess() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getClusterId()).thenReturn(1L);
+		when(destHost.getClusterId()).thenReturn(2L);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		VirtualMachineTO to = mock(VirtualMachineTO.class);
+		when(to.getId()).thenReturn(6L);
+		VMInstanceVO instance = mock(VMInstanceVO.class);
+		when(instanceDao.findById(6L)).thenReturn(instance);
 
-        MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
-        when(migAnswerMock.getResult()).thenReturn(true);
-        when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
+		AsyncRpcContext<CommandResult> context = mockAsyncRpcContext1(null, null, volumeMap);
+		AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher
+				.create(this);
+		caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
 
-        strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
-        assertTrue("Migration across cluster isn't successful.", result.isSuccess());
-    }
+		MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
+		when(migAnswerMock.getResult()).thenReturn(true);
+		when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
 
-    @Test
-    public void testMigrateAcrossClusterFailure() throws Exception {
-        Host srcHost = mock(Host.class);
-        Host destHost = mock(Host.class);
-        when(srcHost.getClusterId()).thenReturn(1L);
-        when(destHost.getClusterId()).thenReturn(2L);
-        Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
-        VirtualMachineTO to = mock(VirtualMachineTO.class);
-        when(to.getId()).thenReturn(6L);
-        VMInstanceVO instance = mock(VMInstanceVO.class);
-        when(instanceDao.findById(6L)).thenReturn(instance);
+		strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
+		assertTrue("Migration across cluster isn't successful.", result.isSuccess());
+	}
 
-        MockContext<CommandResult> context = new MockContext<CommandResult>(null, null, volumeMap);
-        AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher.create(this);
-        caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
+	@Test
+	public void testMigrateAcrossClusterFailure() throws Exception {
+		Host srcHost = mock(Host.class);
+		Host destHost = mock(Host.class);
+		when(srcHost.getClusterId()).thenReturn(1L);
+		when(destHost.getClusterId()).thenReturn(2L);
+		Map<VolumeInfo, DataStore> volumeMap = new HashMap<VolumeInfo, DataStore>();
+		VirtualMachineTO to = mock(VirtualMachineTO.class);
+		when(to.getId()).thenReturn(6L);
+		VMInstanceVO instance = mock(VMInstanceVO.class);
+		when(instanceDao.findById(6L)).thenReturn(instance);
 
-        MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
-        when(migAnswerMock.getResult()).thenReturn(false);
-        when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
+		AsyncRpcContext<CommandResult> context = mockAsyncRpcContext1(null, null, volumeMap);
+		AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> caller = AsyncCallbackDispatcher
+				.create(this);
+		caller.setCallback(caller.getTarget().mockCallBack(null, null)).setContext(context);
 
-        strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
-        assertFalse("Migration across cluster didn't fail.", result.isSuccess());
-    }
+		MigrateWithStorageAnswer migAnswerMock = mock(MigrateWithStorageAnswer.class);
+		when(migAnswerMock.getResult()).thenReturn(false);
+		when(agentMgr.send(anyLong(), isA(MigrateWithStorageCommand.class))).thenReturn(migAnswerMock);
 
-    private class MockContext<T> extends AsyncRpcContext<T> {
-        /**
-         * @param callback
-         */
-        public MockContext(AsyncCompletionCallback<T> callback, AsyncCallFuture<CommandResult> future, Map<VolumeInfo, DataStore> volumeToPool) {
-            super(callback);
-        }
-    }
+		strategy.copyAsync(volumeMap, to, srcHost, destHost, caller);
+		assertFalse("Migration across cluster didn't fail.", result.isSuccess());
+	}
 
-    protected Void mockCallBack(AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> callback, MockContext<CommandResult> context) {
-        result = callback.getResult();
-        return null;
-    }
+	protected Void mockCallBack(AsyncCallbackDispatcher<VmwareStorageMotionStrategyTest, CopyCommandResult> callback,
+			AsyncRpcContext context) {
+		result = callback.getResult();
+		return null;
+	}
 
-    @Configuration
-    @ComponentScan(basePackageClasses = {VmwareStorageMotionStrategy.class},
-                   includeFilters = {@Filter(value = TestConfiguration.Library.class, type = FilterType.CUSTOM)},
-                   useDefaultFilters = false)
-    public static class TestConfiguration extends SpringUtils.CloudStackTestConfiguration {
+	@Configuration
+	@ComponentScan(basePackageClasses = { VmwareStorageMotionStrategy.class }, includeFilters = {
+			@Filter(value = TestConfiguration.Library.class, type = FilterType.CUSTOM) }, useDefaultFilters = false)
+	public static class TestConfiguration extends SpringUtils.CloudStackTestConfiguration {
 
-        @Bean
-        public VolumeDao volumeDao() {
-            return Mockito.mock(VolumeDao.class);
-        }
+		@Bean
+		public VolumeDao volumeDao() {
+			return Mockito.mock(VolumeDao.class);
+		}
 
-        @Bean
-        public VolumeDataFactory volumeDataFactory() {
-            return Mockito.mock(VolumeDataFactory.class);
-        }
+		@Bean
+		public VolumeDataFactory volumeDataFactory() {
+			return Mockito.mock(VolumeDataFactory.class);
+		}
 
-        @Bean
-        public PrimaryDataStoreDao primaryDataStoreDao() {
-            return Mockito.mock(PrimaryDataStoreDao.class);
-        }
+		@Bean
+		public PrimaryDataStoreDao primaryDataStoreDao() {
+			return Mockito.mock(PrimaryDataStoreDao.class);
+		}
 
-        @Bean
-        public VMInstanceDao vmInstanceDao() {
-            return Mockito.mock(VMInstanceDao.class);
-        }
+		@Bean
+		public VMInstanceDao vmInstanceDao() {
+			return Mockito.mock(VMInstanceDao.class);
+		}
 
-        @Bean
-        public AgentManager agentManager() {
-            return Mockito.mock(AgentManager.class);
-        }
+		@Bean
+		public AgentManager agentManager() {
+			return Mockito.mock(AgentManager.class);
+		}
 
-        @Bean
-        public HostDao hostDao() {
-            return Mockito.mock(HostDao.class);
-        }
+		@Bean
+		public HostDao hostDao() {
+			return Mockito.mock(HostDao.class);
+		}
 
-        public static class Library implements TypeFilter {
-            @Override
-            public boolean match(MetadataReader mdr, MetadataReaderFactory arg1) throws IOException {
-                ComponentScan cs = TestConfiguration.class.getAnnotation(ComponentScan.class);
-                return SpringUtils.includedInBasePackageClasses(mdr.getClassMetadata().getClassName(), cs);
-            }
-        }
-    }
+		public static class Library implements TypeFilter {
+			@Override
+			public boolean match(MetadataReader mdr, MetadataReaderFactory arg1) throws IOException {
+				ComponentScan cs = TestConfiguration.class.getAnnotation(ComponentScan.class);
+				return SpringUtils.includedInBasePackageClasses(mdr.getClassMetadata().getClassName(), cs);
+			}
+		}
+	}
 }
